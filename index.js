@@ -5,7 +5,7 @@ app.use(express.json());
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Verificación del webhook
 app.get('/webhook', (req, res) => {
@@ -27,7 +27,7 @@ app.post('/webhook', async (req, res) => {
           const from = message.from;
           const text = message.text.body;
           console.log('Mensaje de:', from, '→', text);
-          const aiReply = await askClaude(text);
+          const aiReply = await askGemini(text);
           await sendMessage(from, aiReply);
         }
       }
@@ -36,43 +36,45 @@ app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 });
 
-// Llamar a Claude
-async function askClaude(userMessage) {
+// Llamar a Gemini
+async function askGemini(userMessage) {
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: userMessage }]
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: userMessage }] }]
+        })
+      }
+    );
     const data = await response.json();
-    return data.content[0].text;
+    return data.candidates[0].content.parts[0].text;
   } catch (error) {
-    console.error('Error Claude:', error);
+    console.error('Error Gemini:', error);
     return 'Lo siento, ocurrió un error. Intenta de nuevo.';
   }
 }
 
 // Enviar mensaje por WhatsApp
 async function sendMessage(to, text) {
-  await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${WHATSAPP_TOKEN}`
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: to,
-      text: { body: text }
-    })
-  });
+  try {
+    await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        text: { body: text }
+      })
+    });
+  } catch (error) {
+    console.error('Error WhatsApp:', error);
+  }
 }
-app.listen(3000, () => console.log('Bot con IA corriendo en puerto 3000'));
+
+app.listen(3000, () => console.log('Bot con Gemini corriendo en puerto 3000'));
