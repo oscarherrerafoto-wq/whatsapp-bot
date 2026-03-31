@@ -45,12 +45,17 @@ async function askGemini(userMessage) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: userMessage }] }]
+          contents: [{ role: 'user', parts: [{ text: userMessage }] }]
         })
       }
     );
     const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    console.log('Respuesta Gemini:', JSON.stringify(data));
+    if (data.candidates && data.candidates[0]) {
+      return data.candidates[0].content.parts[0].text;
+    } else {
+      return 'No pude generar una respuesta. Intenta de nuevo.';
+    }
   } catch (error) {
     console.error('Error Gemini:', error);
     return 'Lo siento, ocurrió un error. Intenta de nuevo.';
