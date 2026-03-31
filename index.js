@@ -5,7 +5,7 @@ app.use(express.json());
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 // Verificación del webhook
 app.get('/webhook', (req, res) => {
@@ -27,7 +27,7 @@ app.post('/webhook', async (req, res) => {
           const from = message.from;
           const text = message.text.body;
           console.log('Mensaje de:', from, '→', text);
-          const aiReply = await askGemini(text);
+          const aiReply = await askGroq(text);
           await sendMessage(from, aiReply);
         }
       }
@@ -36,28 +36,26 @@ app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 });
 
-// Llamar a Gemini
-async function askGemini(userMessage) {
+// Llamar a Groq
+async function askGroq(userMessage) {
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: userMessage }] }]
-        })
-      }
-    );
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama3-8b-8192',
+        messages: [{ role: 'user', content: userMessage }],
+        max_tokens: 1024
+      })
+    });
     const data = await response.json();
-    console.log('Respuesta Gemini:', JSON.stringify(data));
-    if (data.candidates && data.candidates[0]) {
-      return data.candidates[0].content.parts[0].text;
-    } else {
-      return 'No pude generar una respuesta. Intenta de nuevo.';
-    }
+    console.log('Respuesta Groq:', JSON.stringify(data));
+    return data.choices[0].message.content;
   } catch (error) {
-    console.error('Error Gemini:', error);
+    console.error('Error Groq:', error);
     return 'Lo siento, ocurrió un error. Intenta de nuevo.';
   }
 }
@@ -82,4 +80,4 @@ async function sendMessage(to, text) {
   }
 }
 
-app.listen(3000, () => console.log('Bot con Gemini corriendo en puerto 3000'));
+app.listen(3000, () => console.log('Bot con Groq corriendo en puerto 3000'));
