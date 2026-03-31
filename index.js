@@ -55,6 +55,7 @@ async function askClaude(userMessage) {
     const data = await response.json();
     return data.content[0].text;
   } catch (error) {
+    console.error('Error Claude:', error);
     return 'Lo siento, ocurrió un error. Intenta de nuevo.';
   }
 }
